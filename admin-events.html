@@ -48,7 +48,6 @@
     .form-group { margin-bottom: 12px; }
     label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.9rem; color: #444; }
     
-    /* スマホでタップしやすいよう文字サイズやパディングを調整 */
     input, select {
       width: 100%;
       padding: 12px;
@@ -80,7 +79,6 @@
     .top-actions { margin-bottom: 15px; }
     .btn-summary { background: #6f42c1; width: 100%; margin-bottom: 10px; }
 
-    /* 2カラムをスマホでは縦並び（1カラム）に自動切り替え */
     .grid-2 { display: flex; flex-direction: column; gap: 0; }
     @media (min-width: 600px) {
       .grid-2 { flex-direction: row; gap: 10px; }
@@ -92,10 +90,7 @@
     .create-box { background: #f8fbff; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #d4e5ff; }
     .guest-master-box { background: #fffdf4; border: 1px solid #ffeeba; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
     
-    .guest-input-group { display: flex; gap: 8px; flex-direction: column; }
-    @media (min-width: 600px) { .guest-input-group { flex-direction: row; } }
-    
-    .btn-preset { background: #6c757d; font-size: 0.85rem; padding: 10px; }
+    .btn-preset { background: #6c757d; font-size: 0.85rem; padding: 10px; margin-top: 5px; }
 
     .guest-selector-container {
       background: #fff;
@@ -119,7 +114,6 @@
     }
     .guest-checkbox-item input { width: auto; margin-right: 8px; transform: scale(1.2); }
 
-    /* イベントカード（スマホ最適化） */
     .event-item {
       border: 1px solid #e2e8f0;
       padding: 12px;
@@ -142,7 +136,6 @@
     
     #admin-section { display: none; }
 
-    /* モーダル */
     .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; padding: 10px; box-sizing: border-box; }
     .modal-content { background: #fff; padding: 15px; border-radius: 10px; width: 100%; max-width: 850px; max-height: 90vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
     .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 12px; }
@@ -367,11 +360,17 @@
       alert('「詳細は後日発表」をセットしました！');
     }
 
-    function toLocalISOString(dateStr) {
+    // 正確なローカル日時文字列（YYYY-MM-DDTHH:mm）に変換するヘルパー
+    function formatLocalDateTime(dateStr) {
       if (!dateStr) return '';
       const date = new Date(dateStr);
-      const tzOffset = date.getTimezoneOffset() * 60000;
-      return (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 16);
+      if (isNaN(date.getTime())) return '';
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
 
     async function fetchEvents() {
@@ -422,8 +421,10 @@
       document.getElementById('start_time').value = ev.start_time || '';
       document.getElementById('fee').value = ev.fee || '';
       document.getElementById('after_party_fee').value = ev.after_party_fee || '';
-      document.getElementById('entry_start').value = toLocalISOString(ev.entry_start);
-      document.getElementById('entry_end').value = toLocalISOString(ev.entry_end);
+      
+      // 正確なローカル時刻をセット
+      document.getElementById('entry_start').value = formatLocalDateTime(ev.entry_start);
+      document.getElementById('entry_end').value = formatLocalDateTime(ev.entry_end);
 
       const currentGuests = (ev.guests || '').split(/[,、\s]+/).map(g => g.trim());
       document.querySelectorAll('.chk-guest').forEach(cb => {
@@ -449,6 +450,9 @@
       e.preventDefault();
       const editId = document.getElementById('edit_event_id').value;
 
+      const entryStartVal = document.getElementById('entry_start').value;
+      const entryEndVal = document.getElementById('entry_end').value;
+
       const payload = {
         game_format: document.getElementById('game_format').value,
         title: document.getElementById('title').value,
@@ -459,8 +463,8 @@
         start_time: document.getElementById('start_time').value || null,
         fee: document.getElementById('fee').value || null,
         after_party_fee: document.getElementById('after_party_fee').value || null,
-        entry_start: document.getElementById('entry_start').value || null,
-        entry_end: document.getElementById('entry_end').value || null
+        entry_start: entryStartVal ? new Date(entryStartVal).toISOString() : null,
+        entry_end: entryEndVal ? new Date(entryEndVal).toISOString() : null
       };
 
       let res;
