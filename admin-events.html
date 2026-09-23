@@ -360,16 +360,18 @@
       alert('「詳細は後日発表」をセットしました！');
     }
 
-    // 正確なローカル日時文字列（YYYY-MM-DDTHH:mm）に変換するヘルパー
+    // データベースのUTC日時を日本時間のローカル日時文字列（YYYY-MM-DDTHH:mm）に正しく変換
     function formatLocalDateTime(dateStr) {
       if (!dateStr) return '';
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return '';
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
+      // 日本時間（+9時間）にシフトしてフォームに表示
+      const jstDate = new Date(date.getTime() + (9 * 60 * 60 * 1000));
+      const year = jstDate.getUTCFullYear();
+      const month = String(jstDate.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(jstDate.getUTCDate()).padStart(2, '0');
+      const hours = String(jstDate.getUTCHours()).padStart(2, '0');
+      const minutes = String(jstDate.getUTCMinutes()).padStart(2, '0');
       return `${year}-${month}-${day}T${hours}:${minutes}`;
     }
 
@@ -422,7 +424,6 @@
       document.getElementById('fee').value = ev.fee || '';
       document.getElementById('after_party_fee').value = ev.after_party_fee || '';
       
-      // 正確なローカル時刻をセット
       document.getElementById('entry_start').value = formatLocalDateTime(ev.entry_start);
       document.getElementById('entry_end').value = formatLocalDateTime(ev.entry_end);
 
@@ -453,6 +454,12 @@
       const entryStartVal = document.getElementById('entry_start').value;
       const entryEndVal = document.getElementById('entry_end').value;
 
+      // 日本時間（+09:00）として正確にISO文字列を生成する関数
+      const toJSTISOString = (val) => {
+        if (!val) return null;
+        return new Date(val + ":00+09:00").toISOString();
+      };
+
       const payload = {
         game_format: document.getElementById('game_format').value,
         title: document.getElementById('title').value,
@@ -463,8 +470,8 @@
         start_time: document.getElementById('start_time').value || null,
         fee: document.getElementById('fee').value || null,
         after_party_fee: document.getElementById('after_party_fee').value || null,
-        entry_start: entryStartVal ? new Date(entryStartVal).toISOString() : null,
-        entry_end: entryEndVal ? new Date(entryEndVal).toISOString() : null
+        entry_start: toJSTISOString(entryStartVal),
+        entry_end: toJSTISOString(entryEndVal)
       };
 
       let res;
