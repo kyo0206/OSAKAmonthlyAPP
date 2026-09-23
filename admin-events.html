@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理画面 | イベント管理</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: #f4f6f8; color: #333; }
+    .container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .login-box { max-width: 350px; margin: 50px auto; padding: 25px; background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 0.9em; }
+    input, select { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 10px 18px; background: #0066cc; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    .btn-cancel { background: #666; margin-left: 10px; display: none; }
+    .logout-btn { background: #666; float: right; }
+    
+    .top-actions { display: flex; gap: 10px; margin-bottom: 20px; }
+    .btn-summary { background: #6f42c1; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+
+    .event-item { border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-top: 15px; background: #fafafa; display: flex; justify-content: space-between; align-items: center; }
+    .btn-group { display: flex; gap: 8px; }
+    .btn-manage { background: #28a745; text-decoration: none; color: #fff; padding: 8px 12px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+    .btn-edit { background: #ff9800; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 0.85em; cursor: pointer; font-weight: bold; }
+    .btn-delete { background: #dc3545; color: #fff; border: none; padding: 8px 12px; border-radius: 4px; font-size: 0.85em; cursor: pointer; font-weight: bold; }
+    
+    #admin-section { display: none; }
+    .create-box { background: #eef5ff; padding: 20px; border-radius: 6px; margin-bottom: 25px; border: 1px solid #cce0ff; }
+    .guest-master-box { background: #fff3cd; border: 1px solid #ffeba2; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+    
+    .grid-2 { display: flex; gap: 10px; }
+    .grid-2 .form-group { flex: 1; }
+
+    /* ゲスト選択チェックボックスエリア */
+    .guest-selector-container {
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .guest-checkbox-item {
+      display: flex;
+      align-items: center;
+      background: #f1f5f9;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.88em;
+      cursor: pointer;
+    }
+    .guest-checkbox-item input { width: auto; margin-right: 6px; transform: scale(1.1); }
+
+    .btn-preset { background: #6c757d; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; margin-top: 6px; }
+
+    /* モーダル表示スタイル */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: #fff; padding: 25px; border-radius: 8px; width: 90%; max-width: 900px; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
+    .btn-close { background: #666; padding: 6px 12px; border-radius: 4px; }
+    
+    table.summary-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85em; }
+    table.summary-table th, table.summary-table td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    table.summary-table th { background: #f0f4f8; position: sticky; top: 0; }
+    .month-tag { display: inline-block; background: #e2e8f0; color: #2d3748; padding: 2px 6px; border-radius: 4px; font-weight: bold; margin-right: 4px; margin-bottom: 4px; }
+    
+    .guest-tag-item { display: inline-flex; align-items: center; background: #fff; border: 1px solid #d0d7de; padding: 2px 8px; border-radius: 4px; margin: 2px; font-size: 0.85em; }
+    .guest-del-btn { color: #dc3545; margin-left: 6px; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <!-- ログイン画面 -->
+  <div id="login-section" class="login-box">
+    <h2>管理者ログイン</h2>
+    <div class="form-group"><label>メール</label><input type="email" id="login-email"></div>
+    <div class="form-group"><label>パスワード</label><input type="password" id="login-pass"></div>
+    <button onclick="login()">ログイン</button>
+  </div>
+
+  <!-- 管理ダッシュボード -->
+  <div id="admin-section" class="container">
+    <button class="logout-btn" onclick="logout()">ログアウト</button>
+    <h1>イベント管理ダッシュボード</h1>
+
+    <div class="top-actions">
+      <button class="btn-summary" onclick="openSummaryModal()">📊 全応募者まとめ（参加月一覧）</button>
+    </div>
+
+    <!-- 1. ゲストマスター登録エリア -->
+    <div class="guest-master-box">
+      <h3 style="margin-top:0; margin-bottom:10px; font-size:1.05em;">👤 ゲストマスター登録・管理</h3>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <input type="text" id="new-guest-name" placeholder="新しいゲスト名 (例: 岩崎 奈美)" style="flex:1;">
+        <button type="button" style="background:#28a745; font-size:0.85em;" onclick="addGuestMaster()">ゲストを追加登録</button>
+      </div>
+      <div>
+        <label style="font-size:0.8em; color:#666;">登録済みゲスト一覧:</label>
+        <div id="guest-master-list" style="margin-top:4px;">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- 2. イベント登録・編集フォーム -->
+    <div class="create-box">
+      <h3 id="form-header-title">＋ 新規イベント追加</h3>
+      <form id="event-form">
+        <input type="hidden" id="edit_event_id">
+
+        <div class="grid-2">
+          <div class="form-group"><label>フォーマット *</label>
+            <select id="game_format">
+              <option value="Doubles">Doubles</option>
+              <option value="Trios">Trios</option>
+              <option value="Garon">Garon</option>
+              <option value="Team Battle">Team Battle</option>
+              <option value="紅白戦">紅白戦</option>
+              <option value="詳細は後日発表">詳細は後日発表</option>
+            </select>
+          </div>
+          <div class="form-group"><label>イベントタイトル *</label><input type="text" id="title" required placeholder="OSAKA monthly 2026.10.11"></div>
+        </div>
+        
+        <div class="grid-2">
+          <div class="form-group"><label>開催日 *</label><input type="date" id="event_date" required></div>
+          <div class="form-group"><label>開催店舗</label><input type="text" id="location" placeholder="Pool Sept."></div>
+        </div>
+
+        <!-- ゲスト選択エリア（マスターから選択） -->
+        <div class="form-group">
+          <label>ゲストを選択 (登録済みゲストから複数選択可)</label>
+          <div class="guest-selector-container" id="guest-checkboxes">
+            <span style="font-size:0.85em; color:#666;">ゲストマスターを読み込み中...</span>
+          </div>
+          <input type="hidden" id="guests">
+          <button type="button" class="btn-preset" onclick="setGuestPreset('詳細は後日発表')">「詳細は後日発表」をセット</button>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group"><label>OPEN 時間</label><input type="text" id="open_time" placeholder="11:00"></div>
+          <div class="form-group"><label>START 時間</label><input type="text" id="start_time" placeholder="12:00"></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group"><label>FEE (参加費)</label><input type="text" id="fee" placeholder="¥3,000 / 1名"></div>
+          <div class="form-group"><label>After Party (アフター費)</label><input type="text" id="after_party_fee" placeholder="¥3,500 / 1名"></div>
+        </div>
+
+        <div class="grid-2">
+          <div class="form-group"><label>受付開始日時</label><input type="datetime-local" id="entry_start"></div>
+          <div class="form-group"><label>受付終了日時</label><input type="datetime-local" id="entry_end"></div>
+        </div>
+
+        <button type="submit" id="submit-btn">イベントを作成する</button>
+        <button type="button" class="btn-cancel" id="cancel-btn" onclick="resetForm()">キャンセル</button>
+      </form>
+    </div>
+
+    <h2>登録済みイベント一覧</h2>
+    <div id="event-list"></div>
+  </div>
+
+  <!-- 全応募者まとめ モーダル -->
+  <div id="summary-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 style="margin:0;">全応募者まとめ（あいうえお順・参加月）</h2>
+        <button class="btn-close" onclick="closeSummaryModal()">閉じる</button>
+      </div>
+      <div>全参加人数: <strong id="total-unique-users">0</strong> 名</div>
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>お名前 (五十音順)</th>
+            <th>連絡先</th>
+            <th>参加・応募イベント（月）</th>
+          </tr>
+        </thead>
+        <tbody id="summary-table-body">
+          <tr><td colspan="4">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zwaqagwhhdasursndbqf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Vyaw40s58zx5SSCPyOCtPw_De9FQv3t';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let fetchedEvents = [];
+    let guestMasterList = [];
+
+    async function login() {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-pass').value;
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (error) alert('失敗: ' + error.message); else showAdmin();
+    }
+
+    async function logout() { await supabaseClient.auth.signOut(); location.reload(); }
+
+    function showAdmin() {
+      document.getElementById('login-section').style.display = 'none';
+      document.getElementById('admin-section').style.display = 'block';
+      fetchGuestMaster();
+      fetchEvents();
+    }
+
+    // --- ゲストマスター処理 ---
+    async function fetchGuestMaster() {
+      const { data, error } = await supabaseClient.from('guests_master').select('*').order('name', { ascending: true });
+      const container = document.getElementById('guest-master-list');
+      const checkboxContainer = document.getElementById('guest-checkboxes');
+
+      if (error || !data) {
+        container.innerHTML = 'ゲストマスターデータがありません';
+        return;
+      }
+
+      guestMasterList = data;
+      container.innerHTML = '';
+      checkboxContainer.innerHTML = '';
+
+      if (data.length === 0) {
+        container.innerHTML = '登録されたゲストはありません。';
+        checkboxContainer.innerHTML = '<span style="font-size:0.85em; color:#666;">ゲストマスターが空です。上部から登録してください。</span>';
+        return;
+      }
+
+      data.forEach(g => {
+        const span = document.createElement('span');
+        span.className = 'guest-tag-item';
+        span.innerHTML = `${g.name} <span class="guest-del-btn" onclick="deleteGuestMaster('${g.id}', '${g.name}')">×</span>`;
+        container.appendChild(span);
+
+        const label = document.createElement('label');
+        label.className = 'guest-checkbox-item';
+        label.innerHTML = `<input type="checkbox" class="chk-guest" value="${g.name}" onchange="updateGuestsInputValue()"> ${g.name}`;
+        checkboxContainer.appendChild(label);
+      });
+    }
+
+    async function addGuestMaster() {
+      const input = document.getElementById('new-guest-name');
+      const name = input.value.trim();
+      if (!name) return;
+
+      const { error } = await supabaseClient.from('guests_master').insert([{ name }]);
+      if (error) {
+        alert('追加失敗: ' + error.message);
+      } else {
+        input.value = '';
+        fetchGuestMaster();
+      }
+    }
+
+    async function deleteGuestMaster(id, name) {
+      if (!confirm(`ゲスト「${name}」をマスターから削除しますか？`)) return;
+      await supabaseClient.from('guests_master').delete().eq('id', id);
+      fetchGuestMaster();
+    }
+
+    function updateGuestsInputValue() {
+      const checked = Array.from(document.querySelectorAll('.chk-guest:checked')).map(cb => cb.value);
+      document.getElementById('guests').value = checked.join(', ');
+    }
+
+    // 「詳細は後日発表」ボタンの確実な動作
+    function setGuestPreset(text) {
+      document.querySelectorAll('.chk-guest').forEach(cb => cb.checked = false);
+      document.getElementById('guests').value = text;
+      
+      const formatSelect = document.getElementById('game_format');
+      if (formatSelect) {
+        formatSelect.value = "詳細は後日発表";
+      }
+      alert('「詳細は後日発表」をセットしました！');
+    }
+
+    // --- イベント管理処理 ---
+    function toLocalISOString(dateStr) {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      const tzOffset = date.getTimezoneOffset() * 60000;
+      return (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 16);
+    }
+
+    async function fetchEvents() {
+      const { data: events, error } = await supabaseClient.from('events').select('*').order('event_date', { ascending: false });
+      const container = document.getElementById('event-list');
+      container.innerHTML = '';
+
+      if (error || !events) return;
+      fetchedEvents = events;
+
+      events.forEach(ev => {
+        const div = document.createElement('div');
+        div.className = 'event-item';
+        div.innerHTML = `
+          <div>
+            <strong style="font-size:1.1em;">[${ev.game_format || 'Doubles'}] ${ev.title}</strong> (${ev.event_date})<br>
+            <span style="font-size:0.85em; color:#666;">
+              ゲスト: ${ev.guests || 'なし'} | 店舗: ${ev.location || '未設定'}
+            </span>
+          </div>
+          <div class="btn-group">
+            <button class="btn-edit" onclick="startEdit('${ev.id}')">編集</button>
+            <a href="admin-applications.html?event_id=${ev.id}" class="btn-manage">応募一覧 ➔</a>
+            <button class="btn-delete" onclick="deleteEvent('${ev.id}', '${ev.title}')">削除</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function deleteEvent(id, title) {
+      if (!confirm(`「${title}」を本当に削除しますか？\n※関連する応募データも全て削除されます。`)) return;
+      const { error } = await supabaseClient.from('events').delete().eq('id', id);
+      if (error) alert('削除失敗: ' + error.message); else fetchEvents();
+    }
+
+    function startEdit(id) {
+      const ev = fetchedEvents.find(e => e.id === id);
+      if (!ev) return;
+
+      document.getElementById('edit_event_id').value = ev.id;
+      document.getElementById('game_format').value = ev.game_format || 'Doubles';
+      document.getElementById('title').value = ev.title || '';
+      document.getElementById('event_date').value = ev.event_date || '';
+      document.getElementById('location').value = ev.location || '';
+      document.getElementById('guests').value = ev.guests || '';
+      document.getElementById('open_time').value = ev.open_time || '';
+      document.getElementById('start_time').value = ev.start_time || '';
+      document.getElementById('fee').value = ev.fee || '';
+      document.getElementById('after_party_fee').value = ev.after_party_fee || '';
+      document.getElementById('entry_start').value = toLocalISOString(ev.entry_start);
+      document.getElementById('entry_end').value = toLocalISOString(ev.entry_end);
+
+      const currentGuests = (ev.guests || '').split(/[,、\s]+/).map(g => g.trim());
+      document.querySelectorAll('.chk-guest').forEach(cb => {
+        cb.checked = currentGuests.includes(cb.value);
+      });
+
+      document.getElementById('form-header-title').innerText = '✏️ イベント情報を編集';
+      document.getElementById('submit-btn').innerText = '変更を保存する';
+      document.getElementById('cancel-btn').style.display = 'inline-block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function resetForm() {
+      document.getElementById('edit_event_id').value = '';
+      document.getElementById('event-form').reset();
+      document.querySelectorAll('.chk-guest').forEach(cb => cb.checked = false);
+      document.getElementById('form-header-title').innerText = '＋ 新規イベント追加';
+      document.getElementById('submit-btn').innerText = 'イベントを作成する';
+      document.getElementById('cancel-btn').style.display = 'none';
+    }
+
+    document.getElementById('event-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const editId = document.getElementById('edit_event_id').value;
+
+      const payload = {
+        game_format: document.getElementById('game_format').value,
+        title: document.getElementById('title').value,
+        event_date: document.getElementById('event_date').value,
+        location: document.getElementById('location').value || null,
+        guests: document.getElementById('guests').value || null,
+        open_time: document.getElementById('open_time').value || null,
+        start_time: document.getElementById('start_time').value || null,
+        fee: document.getElementById('fee').value || null,
+        after_party_fee: document.getElementById('after_party_fee').value || null,
+        entry_start: document.getElementById('entry_start').value || null,
+        entry_end: document.getElementById('entry_end').value || null
+      };
+
+      let res;
+      if (editId) {
+        res = await supabaseClient.from('events').update(payload).eq('id', editId);
+      } else {
+        res = await supabaseClient.from('events').insert([payload]);
+      }
+
+      if (res.error) alert('保存エラー: ' + res.error.message);
+      else {
+        alert(editId ? 'イベント情報を更新しました！' : '新しいイベントを作成しました！');
+        resetForm();
+        fetchEvents();
+      }
+    });
+
+    async function openSummaryModal() {
+      document.getElementById('summary-modal').style.display = 'flex';
+      const tbody = document.getElementById('summary-table-body');
+      tbody.innerHTML = '<tr><td colspan="4">集計中...</td></tr>';
+
+      const { data: events } = await supabaseClient.from('events').select('id, title, event_date');
+      const { data: apps } = await supabaseClient.from('applications').select('name, pair_name, members, phone, event_id');
+
+      const eventMap = {};
+      (events || []).forEach(e => {
+        const dateObj = new Date(e.event_date);
+        const monthStr = (dateObj.getMonth() + 1) + '月';
+        eventMap[e.id] = `${monthStr} (${e.title})`;
+      });
+
+      const userMap = {};
+
+      (apps || []).forEach(app => {
+        const evName = eventMap[app.event_id] || '不明なイベント';
+        const phone = app.phone || '-';
+
+        const names = [];
+        if (app.name) names.push(app.name);
+        if (app.pair_name) names.push(app.pair_name);
+        if (app.members) {
+          try {
+            const mList = JSON.parse(app.members);
+            mList.forEach(m => { if (m.name) names.push(m.name); });
+          } catch(e) {}
+        }
+
+        names.forEach(n => {
+          const cleanName = n.trim();
+          if (!userMap[cleanName]) {
+            userMap[cleanName] = { phone: phone, events: new Set() };
+          }
+          userMap[cleanName].events.add(evName);
+        });
+      });
+
+      const sortedNames = Object.keys(userMap).sort((a, b) => a.localeCompare(b, 'ja'));
+
+      document.getElementById('total-unique-users').innerText = sortedNames.length;
+      tbody.innerHTML = '';
+
+      if (sortedNames.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4">応募データが存在しません。</td></tr>';
+        return;
+      }
+
+      sortedNames.forEach((name, idx) => {
+        const u = userMap[name];
+        const eventTags = Array.from(u.events).map(e => `<span class="month-tag">${e}</span>`).join('');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td><strong>${name}</strong></td>
+          <td>${u.phone}</td>
+          <td>${eventTags}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function closeSummaryModal() {
+      document.getElementById('summary-modal').style.display = 'none';
+    }
+
+    supabaseClient.auth.getSession().then(({ data: { session } }) => { if (session) showAdmin(); });
+  </script>
+</body>
+</html>

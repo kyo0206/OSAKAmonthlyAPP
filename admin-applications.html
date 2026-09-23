@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理画面 | 応募者一覧</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 20px; background: #f4f6f8; color: #333; }
+    .container { max-width: 1100px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+    .back-btn { display: inline-block; margin-bottom: 15px; color: #0066cc; text-decoration: none; font-weight: bold; }
+    
+    .stats-container { display: flex; gap: 15px; margin-bottom: 20px; }
+    .stat-card { flex: 1; background: #f0f4f8; border: 1px solid #d0d7de; padding: 15px; border-radius: 6px; text-align: center; }
+    .stat-title { font-size: 0.85em; color: #555; margin-bottom: 5px; }
+    .stat-value { font-size: 1.8em; font-weight: bold; color: #0066cc; }
+    .stat-sub { font-size: 0.8em; color: #777; margin-top: 3px; }
+
+    .quick-box { background: #eef9f2; border: 1px solid #b7e4c7; padding: 15px; border-radius: 6px; margin-bottom: 20px; }
+    .quick-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-top: 10px; }
+    .quick-form input, .quick-form select { padding: 6px; font-size: 0.85em; border: 1px solid #ccc; border-radius: 4px; }
+    button { padding: 8px 12px; background: #28a745; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 0.85em; text-align: left; }
+    th { background: #f0f0f0; }
+    .btn-del { background: #dc3545; padding: 4px 8px; font-size: 0.8em; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <a href="admin-events.html" class="back-btn">← イベント選択画面へ戻る</a>
+    <h1 id="event-title">応募者管理</h1>
+
+    <!-- 集計パネル (SUM) -->
+    <div class="stats-container">
+      <div class="stat-card">
+        <div class="stat-title">総エントリー人数</div>
+        <div class="stat-value" id="stat-entry-total">0</div>
+        <div class="stat-sub">(シングル: <span id="stat-single-cnt">0</span>組 / ペア: <span id="stat-pair-cnt">0</span>組)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-title">アフターパーティー総参加人数</div>
+        <div class="stat-value" id="stat-after-total">0</div>
+        <div class="stat-sub">(代表者: <span id="stat-main-after">0</span>名 / ペア: <span id="stat-pair-after">0</span>名)</div>
+      </div>
+    </div>
+
+    <!-- 管理者用 簡易エントリー追加 -->
+    <div class="quick-box">
+      <h3>＋ 店頭・手動 簡易エントリー追加</h3>
+      <form id="quick-form" class="quick-form">
+        <select id="q_entry_type" required>
+          <option value="シングルエントリー">シングル</option>
+          <option value="ペアエントリー">ペア</option>
+        </select>
+        <input type="text" id="q_name" placeholder="氏名 *" required>
+        <select id="q_after_party"><option value="false">アフター不参加</option><option value="true">アフター参加</option></select>
+        <input type="text" id="q_phone" placeholder="電話番号">
+        <input type="email" id="q_email" placeholder="メール (任意)">
+        <input type="text" id="q_pair_name" placeholder="ペア氏名">
+        <select id="q_pair_after_party"><option value="false">ペアアフター不参加</option><option value="true">ペアアフター参加</option></select>
+        <input type="text" id="q_home_shop" placeholder="ホームショップ">
+        <button type="submit">手動追加</button>
+      </form>
+    </div>
+
+    <h2>応募件数 (<span id="count">0</span>件)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>日時</th>
+          <th>形式</th>
+          <th>氏名</th>
+          <th>アフター</th>
+          <th>電話番号</th>
+          <th>ペア氏名</th>
+          <th>ペアアフター</th>
+          <th>ショップ</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="app-list"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zwaqagwhhdasursndbqf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Vyaw40s58zx5SSCPyOCtPw_De9FQv3t';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const eventId = new URLSearchParams(window.location.search).get('event_id');
+
+    async function initPage() {
+      if (!eventId) { alert('イベントIDが指定されていません'); location.href = 'admin-events.html'; return; }
+
+      const { data: ev } = await supabaseClient.from('events').select('title').eq('id', eventId).single();
+      if (ev) document.getElementById('event-title').innerText = `「${ev.title}」応募者管理`;
+
+      fetchApplications();
+    }
+
+    async function fetchApplications() {
+      const { data: apps, error } = await supabaseClient
+        .from('applications')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false });
+
+      if (error) return;
+
+      // 集計変数の初期化
+      let singleCount = 0;
+      let pairCount = 0;
+      let mainAfterCount = 0;
+      let pairAfterCount = 0;
+
+      apps.forEach(a => {
+        if (a.entry_type === 'ペアエントリー') {
+          pairCount++;
+          if (a.pair_after_party) pairAfterCount++;
+        } else {
+          singleCount++;
+        }
+        if (a.after_party) mainAfterCount++;
+      });
+
+      const totalEntries = (singleCount * 1) + (pairCount * 2);
+      const totalAfterParty = mainAfterCount + pairAfterCount;
+
+      // 集計表示の更新
+      document.getElementById('stat-entry-total').innerText = totalEntries;
+      document.getElementById('stat-single-cnt').innerText = singleCount;
+      document.getElementById('stat-pair-cnt').innerText = pairCount;
+
+      document.getElementById('stat-after-total').innerText = totalAfterParty;
+      document.getElementById('stat-main-after').innerText = mainAfterCount;
+      document.getElementById('stat-pair-after').innerText = pairAfterCount;
+
+      document.getElementById('count').innerText = apps.length;
+
+      const tbody = document.getElementById('app-list');
+      tbody.innerHTML = '';
+
+      apps.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${new Date(item.created_at).toLocaleDateString('ja-JP')}</td>
+          <td>${item.entry_type}</td>
+          <td><strong>${item.name}</strong></td>
+          <td>${item.after_party ? '参加' : '不参加'}</td>
+          <td>${item.phone || '-'}</td>
+          <td>${item.pair_name || '-'}</td>
+          <td>${item.entry_type === 'ペアエントリー' ? (item.pair_after_party ? '参加' : '不参加') : '-'}</td>
+          <td>${item.home_shop || '-'}</td>
+          <td><button class="btn-del" onclick="deleteApp('${item.id}')">削除</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // 手動追加処理
+    document.getElementById('quick-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        event_id: eventId,
+        entry_type: document.getElementById('q_entry_type').value,
+        name: document.getElementById('q_name').value,
+        after_party: document.getElementById('q_after_party').value === 'true',
+        phone: document.getElementById('q_phone').value || '000-0000-0000',
+        email: document.getElementById('q_email').value || 'admin@direct',
+        pair_name: document.getElementById('q_pair_name').value || null,
+        pair_after_party: document.getElementById('q_pair_after_party').value === 'true',
+        home_shop: document.getElementById('q_home_shop').value || null
+      };
+
+      const { error } = await supabaseClient.from('applications').insert([payload]);
+      if (error) alert('追加失敗: ' + error.message);
+      else { alert('追加しました！'); document.getElementById('quick-form').reset(); fetchApplications(); }
+    });
+
+    async function deleteApp(id) {
+      if (!confirm('本当に削除しますか？')) return;
+      await supabaseClient.from('applications').delete().eq('id', id);
+      fetchApplications();
+    }
+
+    initPage();
+  </script>
+</body>
+</html>

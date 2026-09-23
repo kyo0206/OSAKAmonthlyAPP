@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>エントリー完了 | OSAKA monthly</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 500px; margin: 30px auto; padding: 0 15px; color: #333; background: #f4f6f8; }
+    .card { background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    .success-badge { background: #e6f4ea; color: #137333; font-weight: bold; text-align: center; padding: 10px; border-radius: 4px; margin-bottom: 20px; }
+    .detail-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    .detail-table th, .detail-table td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.9em; }
+    .detail-table th { color: #666; width: 40%; }
+    .btn-home { display: block; text-align: center; background: #333; color: #fff; text-decoration: none; padding: 10px; border-radius: 4px; margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="success-badge">✓ エントリーを受け付けました</div>
+
+    <h3>エントリー確認詳細</h3>
+    <table class="detail-table" id="detail-body">
+      <tr><td colspan="2">読み込み中...</td></tr>
+    </table>
+
+    <a href="index.html" class="btn-home">イベント一覧に戻る</a>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zwaqagwhhdasursndbqf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Vyaw40s58zx5SSCPyOCtPw_De9FQv3t';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const appId = new URLSearchParams(window.location.search).get('id');
+
+    async function loadDetail() {
+      if (!appId) return;
+
+      const { data: app, error } = await supabaseClient
+        .from('applications')
+        .select('*, events(title, event_date)')
+        .eq('id', appId)
+        .single();
+
+      if (error || !app) {
+        document.getElementById('detail-body').innerHTML = '<tr><td colspan="2">データが見つかりませんでした。</td></tr>';
+        return;
+      }
+
+      document.getElementById('detail-body').innerHTML = `
+        <tr><th>イベント名</th><td>${app.events ? app.events.title : '-'}</td></tr>
+        <tr><th>開催日</th><td>${app.events ? app.events.event_date : '-'}</td></tr>
+        <tr><th>受付日時</th><td>${new Date(app.created_at).toLocaleString('ja-JP')}</td></tr>
+        <tr><th>① エントリー形式</th><td>${app.entry_type}</td></tr>
+        <tr><th>② お名前</th><td>${app.name}</td></tr>
+        <tr><th>③ アフター</th><td>${app.after_party ? '参加' : '不参加'}</td></tr>
+        <tr><th>④ 電話番号</th><td>${app.phone}</td></tr>
+        <tr><th>⑤ メール</th><td>${app.email}</td></tr>
+        ${app.entry_type === 'ペアエントリー' ? `
+          <tr><th>⑥ ペアお名前</th><td>${app.pair_name || '-'}</td></tr>
+          <tr><th>⑦ ペアアフター</th><td>${app.pair_after_party ? '参加' : '不参加'}</td></tr>
+        ` : ''}
+        <tr><th>⑧ ホームショップ</th><td>${app.home_shop || '-'}</td></tr>
+      `;
+    }
+
+    loadDetail();
+  </script>
+</body>
+</html>

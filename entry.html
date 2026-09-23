@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSAKA monthly | エントリー</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      max-width: 550px;
+      margin: 0 auto;
+      padding: 20px 15px 40px;
+      color: var(--text-main);
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+
+    .header-banner {
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 15px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+    .header-banner img { width: 100%; height: auto; display: block; }
+    
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      margin-bottom: 15px;
+      color: #475569;
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .back-link:hover { color: #0f172a; }
+
+    .form-container {
+      background: var(--card-bg);
+      padding: 28px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.05);
+      border: 1px solid #f1f5f9;
+    }
+
+    h2 {
+      margin: 0 0 15px 0;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 12px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #0f172a;
+    }
+
+    .format-tag {
+      display: inline-block;
+      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      color: #fff;
+      font-size: 0.8rem;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+      font-weight: 700;
+      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+    }
+
+    .event-meta {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      margin-bottom: 22px;
+      border: 1px solid #e2e8f0;
+    }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .guest-tag {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-weight: 700;
+    }
+    
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.92rem; color: #334155; }
+    
+    input[type="text"], input[type="email"], select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 0.95rem;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, input[type="email"]:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    .note { font-size: 0.8rem; color: #64748b; margin-top: 4px; }
+    
+    .dynamic-section {
+      background: #f0fdf4;
+      padding: 18px;
+      border-radius: 12px;
+      border: 1px solid #bbf7d0;
+      margin-bottom: 20px;
+    }
+    .member-card {
+      background: #fff;
+      padding: 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      margin-top: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+    .member-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 8px; font-size: 0.9rem; }
+    
+    .checkbox-label { display: flex; align-items: center; font-weight: 700; cursor: pointer; color: #1e293b; }
+    .checkbox-label input { margin-right: 10px; transform: scale(1.25); accent-color: var(--primary); }
+    
+    .btn-add-member {
+      background: #0284c7;
+      color: #fff;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.88rem;
+      margin-top: 10px;
+      width: 100%;
+    }
+    .btn-remove-member {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      cursor: pointer;
+      margin-top: 10px;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+      transition: opacity 0.2s;
+    }
+    button[type="submit"]:hover { opacity: 0.95; }
+  </style>
+</head>
+<body>
+
+  <div class="header-banner">
+    <img src="https://via.placeholder.com/600x180/333333/FFFFFF?text=OSAKA+monthly" alt="OSAKA monthly バナー">
+  </div>
+
+  <a href="index.html" class="back-link">← イベント一覧へ戻る</a>
+
+  <div class="form-container">
+    <span id="format-tag" class="format-tag">Doubles</span>
+    <h2 id="event-title">読み込み中...</h2>
+    <div id="event-info" class="event-meta"></div>
+
+    <form id="app-form">
+      <div class="form-group" id="group-entry-type">
+        <label for="entry_type">① エントリー形式 *</label>
+        <select id="entry_type" required onchange="renderFormByEntryType()">
+        </select>
+      </div>
+
+      <div class="form-group" id="group-captain" style="display:none;">
+        <label for="captain">希望キャプテン（チーム） *</label>
+        <select id="captain">
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="name" id="label-name">② お名前 *</label>
+        <div class="note">※カタカナフルネームでご記入ください。</div>
+        <input type="text" id="name" required placeholder="ヤマダ タロウ">
+      </div>
+
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input type="checkbox" id="after_party"> ③ アフターパーティー参加
+        </label>
+        <div class="note">イベント後にゲストと交流しながら飲み放題、軽食を楽しめます！</div>
+      </div>
+
+      <div class="form-group">
+        <label for="phone">④ 代表者電話番号 *</label>
+        <input type="text" id="phone" required placeholder="09012345678">
+      </div>
+
+      <div class="form-group">
+        <label for="email">⑤ メールアドレス *</label>
+        <input type="email" id="email" required placeholder="example@gmail.com">
+      </div>
+
+      <div id="dynamic-members-section" class="dynamic-section" style="display:none;">
+        <h4 style="margin:0 0 10px 0; color:#166534;" id="section-member-title">パートナー・チームメンバー情報</h4>
+        <div id="members-container"></div>
+        <button type="button" class="btn-add-member" id="btn-add-member" style="display:none;" onclick="addMemberCard()">＋ 同時エントリーのメンバーを追加</button>
+      </div>
+
+      <div class="form-group">
+        <label for="home_shop">⑧ ホームショップ</label>
+        <input type="text" id="home_shop" placeholder="Pool Sept.">
+      </div>
+
+      <button type="submit" id="submit-btn">応募する</button>
+    </form>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://zwaqagwhhdasursndbqf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Vyaw40s58zx5SSCPyOCtPw_De9FQv3t';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const eventId = new URLSearchParams(window.location.search).get('event_id');
+    let currentEvent = null;
+    let memberCount = 0;
+
+    async function initPage() {
+      if (!eventId) { alert('イベントが指定されていません'); location.href = 'index.html'; return; }
+
+      const { data: ev, error: evError } = await supabaseClient.from('events').select('*').eq('id', eventId).single();
+      if (evError || !ev) { alert('イベントが見つかりません'); location.href = 'index.html'; return; }
+
+      currentEvent = ev;
+
+      const format = ev.game_format || 'Doubles';
+      document.getElementById('format-tag').innerText = format;
+      document.getElementById('event-title').innerText = ev.title;
+      document.getElementById('event-info').innerHTML = `
+        <div><strong>■ 開催日:</strong> ${ev.event_date}</div>
+        <div><strong>■ 会場:</strong> ${ev.location || '未定'}</div>
+        <div class="meta-grid">
+          <div><strong>OPEN:</strong> ${ev.open_time || '-'}</div>
+          <div><strong>START:</strong> ${ev.start_time || '-'}</div>
+          <div><strong>FEE:</strong> ${ev.fee || '-'}</div>
+          <div><strong>AfterParty:</strong> ${ev.after_party_fee || '-'}</div>
+        </div>
+        ${ev.guests ? `<div class="guest-tag">★ ゲスト: ${ev.guests}</div>` : ''}
+      `;
+
+      setupEntryTypeOptions(format);
+      setupCaptainOptions(ev.guests);
+    }
+
+    // entry.html の setupEntryTypeOptions 内に追加・更新箇所
+function setupEntryTypeOptions(format) {
+  const select = document.getElementById('entry_type');
+  select.innerHTML = '<option value="">選択してください</option>';
+
+  let options = [];
+  if (format === 'Doubles') {
+    options = ['シングルエントリー', 'ペアエントリー'];
+  } else if (format === 'Trios') {
+    options = ['シングルエントリー', 'ペアエントリー', 'チームエントリー (3名)'];
+  } else if (format === 'Garon') {
+    options = ['シングルエントリー', 'ペアエントリー', 'チームエントリー (3名)', 'チームエントリー (4名)'];
+  } else if (format === 'Team Battle') {
+    options = ['チームバトルエントリー'];
+  } else if (format === '紅白戦') {
+    options = ['シングルエントリー'];
+  } else if (format === '詳細は後日発表') {
+    options = ['未定 (詳細は後日発表)'];
+  } else {
+    options = ['シングルエントリー', 'ペアエントリー'];
+  }
+
+  options.forEach(opt => {
+    select.innerHTML += `<option value="${opt}">${opt}</option>`;
+  });
+
+  if (options.length === 1) {
+    select.value = options[0];
+  }
+  renderFormByEntryType();
+}
+
+    function setupCaptainOptions(guestsStr) {
+      const groupCaptain = document.getElementById('group-captain');
+      const selectCaptain = document.getElementById('captain');
+
+      if (currentEvent.game_format === 'Team Battle' && guestsStr) {
+        groupCaptain.style.display = 'block';
+        selectCaptain.innerHTML = '<option value="">希望キャプテンを選択してください</option>';
+        const guests = guestsStr.split(/[,、\s]+/).filter(g => g.trim() !== '');
+        guests.forEach(g => {
+          selectCaptain.innerHTML += `<option value="${g}">${g} チーム</option>`;
+        });
+        selectCaptain.innerHTML += '<option value="指定なし">指定なし（ランダム）</option>';
+        selectCaptain.required = true;
+      } else {
+        groupCaptain.style.display = 'none';
+        selectCaptain.required = false;
+      }
+    }
+
+    function renderFormByEntryType() {
+      const entryType = document.getElementById('entry_type').value;
+      const section = document.getElementById('dynamic-members-section');
+      const container = document.getElementById('members-container');
+      const btnAdd = document.getElementById('btn-add-member');
+
+      container.innerHTML = '';
+      memberCount = 0;
+
+      let fixedMembersNeeded = 0;
+      let allowManualAdd = false;
+
+      if (entryType === 'ペアエントリー') fixedMembersNeeded = 1;
+      else if (entryType === 'チームエントリー (3名)') fixedMembersNeeded = 2;
+      else if (entryType === 'チームエントリー (4名)') fixedMembersNeeded = 3;
+
+      if (currentEvent.game_format === 'Team Battle' || currentEvent.game_format === '紅白戦') {
+        allowManualAdd = true;
+      }
+
+      if (fixedMembersNeeded > 0 || allowManualAdd) {
+        section.style.display = 'block';
+        for (let i = 0; i < fixedMembersNeeded; i++) {
+          addMemberCard(false);
+        }
+        btnAdd.style.display = allowManualAdd ? 'block' : 'none';
+      } else {
+        section.style.display = 'none';
+      }
+    }
+
+    function addMemberCard(isRemovable = true) {
+      memberCount++;
+      const container = document.getElementById('members-container');
+      const card = document.createElement('div');
+      card.className = 'member-card';
+      card.id = `member-card-${memberCount}`;
+
+      card.innerHTML = `
+        <div class="member-header">
+          <span>メンバー ${memberCount + 1} のお名前</span>
+          ${isRemovable ? `<button type="button" class="btn-remove-member" onclick="removeMemberCard(${memberCount})">削除</button>` : ''}
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+          <input type="text" class="input-member-name" required placeholder="カタカナフルネーム">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="checkbox-label" style="font-size:0.85em;">
+            <input type="checkbox" class="input-member-after"> アフターパーティー参加
+          </label>
+        </div>
+      `;
+      container.appendChild(card);
+    }
+
+    function removeMemberCard(id) {
+      const card = document.getElementById(`member-card-${id}`);
+      if (card) card.remove();
+    }
+
+    document.getElementById('app-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const entryType = document.getElementById('entry_type').value;
+      const nameCards = document.querySelectorAll('.input-member-name');
+      const afterCards = document.querySelectorAll('.input-member-after');
+
+      const membersList = [];
+      nameCards.forEach((input, idx) => {
+        if (input.value.trim() !== '') {
+          membersList.push({
+            name: input.value.trim(),
+            after_party: afterCards[idx].checked
+          });
+        }
+      });
+
+      const formData = {
+        event_id: eventId,
+        entry_type: entryType,
+        captain: document.getElementById('captain').value || null,
+        name: document.getElementById('name').value,
+        after_party: document.getElementById('after_party').checked,
+        phone: document.getElementById('phone').value,
+        email: document.getElementById('email').value,
+        pair_name: membersList.length > 0 ? membersList[0].name : null,
+        pair_after_party: membersList.length > 0 ? membersList[0].after_party : false,
+        members: membersList.length > 0 ? JSON.stringify(membersList) : null,
+        home_shop: document.getElementById('home_shop').value || null
+      };
+
+      const { data, error } = await supabaseClient.from('applications').insert([formData]).select().single();
+
+      if (error) alert('送信エラー: ' + error.message);
+      else location.href = `complete.html?id=${data.id}`;
+    });
+
+    initPage();
+  </script>
+</body>
+</html>

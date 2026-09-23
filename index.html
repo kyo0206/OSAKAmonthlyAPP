@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSAKA monthly | イベント一覧</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      --card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-sub: #475569;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 20px 15px 40px;
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+    
+    /* バナー */
+    .header-banner {
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      border: 1px solid #ffffff;
+    }
+    .header-banner img { width: 100%; height: auto; display: block; }
+    
+    .header-title {
+      text-align: center;
+      color: #1e293b;
+      font-size: 1.8rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      margin: 0 0 25px 0;
+    }
+
+    /* 白系イベントカード */
+    .event-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.05);
+      margin-bottom: 25px;
+      padding: 24px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      border: 1px solid #f1f5f9;
+    }
+    .event-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    }
+    
+    /* フォーマットバッジ */
+    .format-badge { 
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 5px 14px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 4px 10px rgba(79, 70, 229, 0.25);
+    }
+
+    .event-title {
+      margin: 0 0 16px 0;
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: var(--text-main);
+      border-left: 5px solid var(--primary);
+      padding-left: 12px;
+      line-height: 1.3;
+    }
+
+    /* 詳細情報グリッド */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      background: #f8fafc;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      margin-bottom: 14px;
+      border: 1px solid #e2e8f0;
+    }
+    .detail-item { color: var(--text-sub); }
+    .detail-item span { font-weight: 700; color: var(--text-main); }
+
+    /* ゲスト枠 */
+    .guest-line {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      color: #92400e;
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+
+    .info-line { font-size: 0.82rem; color: #64748b; margin-bottom: 12px; }
+    
+    /* 状態バッジ */
+    .status-badge {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .status-open { background: #dcfce7; color: #15803d; }
+    .status-closed { background: #fee2e2; color: #b91c1c; }
+    
+    /* ボタン */
+    .btn-entry {
+      display: block;
+      text-align: center;
+      background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+      color: #fff;
+      text-decoration: none;
+      padding: 14px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+      transition: opacity 0.2s;
+    }
+    .btn-entry:hover { opacity: 0.95; }
+    .btn-disabled {
+      background: #cbd5e1;
+      cursor: not-allowed;
+      text-align: center;
+      color: #64748b;
+      padding: 14px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-banner">
+    <img src="https://via.placeholder.com/600x180/333333/FFFFFF?text=OSAKA+monthly" alt="OSAKA monthly バナー">
+  </div>
+  <h1 class="header-title">OSAKA monthly</h1>
+
+  <div id="event-list" style="text-align: center; color: #64748b;">読み込み中...</div>
+
+  <script>
+    const SUPABASE_URL = 'https://zwaqagwhhdasursndbqf.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_Vyaw40s58zx5SSCPyOCtPw_De9FQv3t';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function loadEvents() {
+      const { data: events, error: evError } = await supabaseClient
+        .from('events')
+        .select('*')
+        .order('event_date', { ascending: true });
+
+      const container = document.getElementById('event-list');
+      if (evError || !events || events.length === 0) {
+        container.innerHTML = '<p>現在予定されているイベントはありません。</p>';
+        return;
+      }
+
+      container.innerHTML = '';
+      const now = new Date();
+
+      events.forEach(ev => {
+        const start = ev.entry_start ? new Date(ev.entry_start) : null;
+        const end = ev.entry_end ? new Date(ev.entry_end) : null;
+        
+        let isOpen = true;
+        let statusText = 'エントリー受付中';
+        let statusClass = 'status-open';
+
+        if (start && now < start) {
+          isOpen = false;
+          statusText = `受付開始前 (${start.toLocaleString('ja-JP')} 〜)`;
+          statusClass = 'status-closed';
+        } else if (end && now > end) {
+          isOpen = false;
+          statusText = 'エントリー受付終了';
+          statusClass = 'status-closed';
+        }
+
+        const formatName = ev.game_format || 'Doubles';
+
+        const card = document.createElement('div');
+        card.className = 'event-card';
+        card.innerHTML = `
+          <div class="format-badge">🎮 ${formatName}</div>
+          <h2 class="event-title">${ev.title}</h2>
+          
+          <div class="detail-grid">
+            <div class="detail-item">■ 開催日: <span>${ev.event_date}</span></div>
+            <div class="detail-item">■ 店舗: <span>${ev.location || '-'}</span></div>
+            <div class="detail-item">■ OPEN: <span>${ev.open_time || '-'}</span></div>
+            <div class="detail-item">■ START: <span>${ev.start_time || '-'}</span></div>
+            <div class="detail-item">■ FEE: <span>${ev.fee || '-'}</span></div>
+            <div class="detail-item">■ After Party: <span>${ev.after_party_fee || '-'}</span></div>
+          </div>
+
+          ${ev.guests ? `<div class="guest-line">★ ゲスト: ${ev.guests}</div>` : ''}
+
+          <div class="info-line">受付期間: ${start ? start.toLocaleDateString('ja-JP') : '随時'} 〜 ${end ? end.toLocaleDateString('ja-JP') : '随時'}</div>
+          <div class="status-badge ${statusClass}">${statusText}</div>
+          
+          ${isOpen 
+            ? `<a href="entry.html?event_id=${ev.id}" class="btn-entry">詳細・エントリーはこちら ➔</a>` 
+            : `<div class="btn-disabled">受付時間外</div>`}
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    loadEvents();
+  </script>
+</body>
+</html>
